@@ -426,6 +426,14 @@ var sprites = [
 generateTitleScreen();
 canvasResize();
 
+function getSimpleSoundSeed(soundname) {
+	if (state.sfx_Events[soundname]!==undefined) {
+		var seed = state.sfx_Events[soundname];
+		return seed;
+	} else {
+		return 0;
+	}
+}
 function tryPlaySimpleSound(soundname) {
 	if (state.sfx_Events[soundname]!==undefined) {
 		var seed = state.sfx_Events[soundname];
@@ -2092,11 +2100,33 @@ function calculateRowColMasks() {
 		1 - play sounds in calling function
 		2 - (still might want to populate list)
 
+
+	REGULAR:
+	simulate
+	draw/play
+
+	AGAIN:
+	simulate
+	draw/play
+		simulate next
+
 */
+
+var soundsToPlay=[];
+
+function playSoundsFromQueue(){
+	for (var i=0;i<soundsToPlay.length;i++) {
+		playSound(soundsToPlay[i]);
+	}
+	soundsToPlay=[];
+}
 
 /* returns a bool indicating if anything changed */
 function processInput(dir,dontCheckWin,dontModify) {
 	againing = false;
+	if (!dontModify){
+		soundsToPlay=[];
+	}
 
 	if (verbose_logging) { 
 	 	if (dir===-1) {
@@ -2268,31 +2298,31 @@ function processInput(dir,dontCheckWin,dontModify) {
 		}
 
         for (var i=0;i<seedsToPlay_CantMove.length;i++) {
-	        	playSound(seedsToPlay_CantMove[i]);
+        	soundsToPlay.push(seedsToPlay_CantMove[i]);
         }
 
         for (var i=0;i<seedsToPlay_CanMove.length;i++) {
-	        	playSound(seedsToPlay_CanMove[i]);
+        	soundsToPlay.push(seedsToPlay_CanMove[i]);
         }
 
         for (var i=0;i<state.sfx_CreationMasks.length;i++) {
         	var entry = state.sfx_CreationMasks[i];
         	if (sfxCreateMask.anyBitsInCommon(entry.objectMask)) {
-	        	playSound(entry.seed);
+        		soundsToPlay.push(entry.seed);
         	}
         }
 
         for (var i=0;i<state.sfx_DestructionMasks.length;i++) {
         	var entry = state.sfx_DestructionMasks[i];
         	if (sfxDestroyMask.anyBitsInCommon(entry.objectMask)) {
-	        	playSound(entry.seed);
+        		soundsToPlay.push(entry.seed);
         	}
         }
 
 	    for (var i=0;i<level.commandQueue.length;i++) {
 	 		var command = level.commandQueue[i];
 	 		if (command.charAt(1)==='f')  {//identifies sfxN
-	 			tryPlaySimpleSound(command);
+	 			soundsToPlay.push(getSimpleSoundSeed(command));
 	 		}  	
 			if (unitTesting===false) {
 				if (command==='message') {
@@ -2359,6 +2389,8 @@ function processInput(dir,dontCheckWin,dontModify) {
 		againing=false;
 	}
 
+	playSoundsFromQueue();
+	
 	return modified;
 }
 
