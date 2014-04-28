@@ -2061,6 +2061,39 @@ function calculateRowColMasks() {
 	}
 }
 
+
+//function processInput() {
+	//1  backup level
+	//2  process dir
+	//3  initialize sfx mask
+	//4  initialize col/row data
+	//5  while(true)
+	//6		 apply rules
+	//7 	 resolve movements
+	//8 	 apply late rules
+	//9  check for player movement
+	//10 check for cancel
+	//11 check for restart
+	//12 check for win
+	//13 check if modified (and if dontModify, restore and back up)
+	//14 play sounds
+	//15 checkWin()
+	//16 if (!winning) 
+	//17 	if checkpoint found
+	//18	if again found
+	//19		if processinput
+	//20 			again
+	//21		else
+	//22 			noagain
+//}
+
+/*
+	steps
+		1 - play sounds in calling function
+		2 - (still might want to populate list)
+
+*/
+
 /* returns a bool indicating if anything changed */
 function processInput(dir,dontCheckWin,dontModify) {
 	againing = false;
@@ -2276,6 +2309,7 @@ function processInput(dir,dontCheckWin,dontModify) {
 	    }
 
 	    if (!winning) {
+
 			if (level.commandQueue.indexOf('checkpoint')>=0) {
 		    	if (verbose_logging) { 
 		    		consolePrint('CHECKPOINT command executed, saving current state to the restart state.');
