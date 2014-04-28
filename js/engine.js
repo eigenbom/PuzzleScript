@@ -2554,13 +2554,8 @@ function processInput(dir,dontCheckWin,dontModify) {
 			return false;
 		}
 
-        for (var i=0;i<seedsToPlay_CantMove.length;i++) {
-        	soundsToPlay.push(seedsToPlay_CantMove[i]);
-        }
-
-        for (var i=0;i<seedsToPlay_CanMove.length;i++) {
-        	soundsToPlay.push(seedsToPlay_CanMove[i]);
-        }
+		soundsToPlay=soundsToPlay.concat(seedsToPlay_CantMove);
+		soundsToPlay=soundsToPlay.concat(seedsToPlay_CanMove);
 
         for (var i=0;i<state.sfx_CreationMasks.length;i++) {
         	var entry = state.sfx_CreationMasks[i];
