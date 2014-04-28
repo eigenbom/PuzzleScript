@@ -2070,6 +2070,274 @@ function calculateRowColMasks() {
 }
 
 
+switch(dir){
+    case 0://up
+    {
+        dir=parseInt('00001', 2);;
+        break;
+    }
+    case 1://left
+    {
+        dir=parseInt('00100', 2);;
+        break;
+    }
+    case 2://down
+    {
+        dir=parseInt('00010', 2);;
+        break;
+    }
+    case 3://right
+    {
+        dir=parseInt('01000', 2);;
+        break;
+    }
+    case 4://action
+    {
+        dir=parseInt('10000', 2);;
+        break;
+    }
+}
+
+var dirMatrix = {
+	-1:-1,
+	0:1,//up
+	1:4,//left
+	2:2,//down
+	3:8,//right
+	4:16//action
+};
+
+var output = {
+	display: [],
+	sounds: []
+};
+
+
+function generateOutput() {
+
+	var soundsToPlay=[];
+
+    for (var i=0;i<seedsToPlay_CantMove.length;i++) {
+    	soundsToPlay.push(seedsToPlay_CantMove[i]);
+    }
+
+    for (var i=0;i<seedsToPlay_CanMove.length;i++) {
+    	soundsToPlay.push(seedsToPlay_CanMove[i]);
+    }
+
+    for (var i=0;i<state.sfx_CreationMasks.length;i++) {
+    	var entry = state.sfx_CreationMasks[i];
+    	if (sfxCreateMask.anyBitsInCommon(entry.objectMask)) {
+    		soundsToPlay.push(entry.seed);
+    	}
+    }
+
+    for (var i=0;i<state.sfx_DestructionMasks.length;i++) {
+    	var entry = state.sfx_DestructionMasks[i];
+    	if (sfxDestroyMask.anyBitsInCommon(entry.objectMask)) {
+    		soundsToPlay.push(entry.seed);
+    	}
+    }
+
+    for (var i=0;i<level.commandQueue.length;i++) {
+ 		var command = level.commandQueue[i];
+ 		if (command.charAt(1)==='f')  {//identifies sfxN
+ 			soundsToPlay.push(getSimpleSoundSeed(command));
+ 		}  	
+    }
+
+	var result = {
+		display:[],
+		sounds:soundsToPlay
+	}
+}
+
+
+function prepareTickStart() {
+	level.bannedGroup = [];
+    rigidBackups = [];
+    level.commandQueue=[];
+    messagetext="";
+    sfxCreateMask=new BitVec(STRIDE_OBJ);
+    sfxDestroyMask=new BitVec(STRIDE_OBJ);
+	calculateRowColMasks();
+	seedsToPlay_CanMove=[];
+	seedsToPlay_CantMove=[];
+
+}
+
+function verbosePrint(str) {
+	if (verbose_logging) {
+		consolePrint(str);
+	}
+}
+
+function NewProcessInput(dir,dontCheckWin,forecast) {
+	var bak = backupLevel();
+	
+	dir = dirMatrix[dir];
+
+	var playerPositions= dir>=0 ? startMovement(dir) : [];
+
+    var startRuleGroupIndex=0;
+    var startState = commitPreservationState();
+
+
+    //RULES
+    while (true) {
+    	verbosePrint('applying rules');
+
+    	applyRules(state.rules, state.loopPoint, startRuleGroupIndex);	
+    	var shouldUndo = resolveMovements();
+
+    	if (shouldUndo) {
+    		restorePreservationState(startState);
+    		startRuleGroupIndex=0;//rigidGroupUndoDat.ruleGroupIndex+1;
+    	} else {
+    		verbosePrint('applying late rules');
+    		applyRules(state.lateRules, state.lateLoopPoint, 0);
+    		startRuleGroupIndex=0;
+    		break;
+    	}
+    }
+
+    if (playerPositions.length>0 && state.metadata.require_player_movement!==undefined) {
+    	var somemoved=false;
+    	for (var i=0;i<playerPositions.length;i++) {
+    		var pos = playerPositions[i];
+    		var val = level.getCell(pos);
+    		if (state.playerMask.bitsClearInArray(val.data)) {
+    			somemoved=true;
+    			break;
+    		}
+    	}
+    	if (somemoved===false) {
+    		verbosePrint('require_player_movement set, but no player movement detected, so cancelling turn.');
+    		backups.push(bak);
+    		DoUndo(true);
+   			consoleCacheDump();
+    		return null;
+    	}
+    	//play player cantmove sounds here
+    }
+
+    if (level.commandQueue.indexOf('cancel')>=0) {	
+    	verbosePrint('CANCEL command executed, cancelling turn.');
+		backups.push(bak);
+		DoUndo(true);
+		consoleCacheDump();
+		return null;
+    } 
+
+	if (level.commandQueue.indexOf('restart')>=0) {
+	    verbosePrint('RESTART command executed, reverting to restart state.');
+    	backups.push(bak);
+	    DoRestart(true);	
+		consoleCacheDump();
+		return true;
+    } 
+
+    if (forecast && level.commandQueue.indexOf('win')>=0) {
+    	return generateOutput();
+    }
+    
+    var modified=false;
+    for (var i=0;i<level.objects.length;i++) {
+    	if (level.objects[i]!==bak.dat[i]) {
+			if (forecast) {
+       			consoleCacheDump();
+				return generateOutput();
+			} else {
+				if (dir!==-1) {
+    				backups.push(bak);
+    			}
+    			modified=true;
+    		}
+    		break;
+    	}
+    }
+
+	if (dontModify) {		
+		if (verbose_logging) {
+			consoleCacheDump();
+		}
+		return false;
+	}
+
+    for (var i=0;i<level.commandQueue.length;i++) {
+ 		var command = level.commandQueue[i];
+		if (unitTesting===false) {
+			if (command==='message') {
+				showTempMessage();
+			}
+		}
+    }
+
+    if (textMode===false && (dontCheckWin===undefined ||dontCheckWin===false)) {
+    	if (verbose_logging) { 
+    		consolePrint('Checking win condition.');
+		}
+    	checkWin();
+    }
+
+    if (!winning) {
+
+		if (level.commandQueue.indexOf('checkpoint')>=0) {
+	    	if (verbose_logging) { 
+	    		consolePrint('CHECKPOINT command executed, saving current state to the restart state.');
+			}
+			restartTarget=backupLevel();
+		}	 
+
+	    if (level.commandQueue.indexOf('again')>=0 && modified) {
+	    	var old_verbose_logging=verbose_logging;
+	    	//verbose_logging=false;
+	    	//first have to verify that something's changed
+	    	var oldmessagetext = messagetext;
+	    	var old_verbose_logging=verbose_logging;
+	    	verbose_logging=false;
+	    	if (processInput(-1,true,true)) {
+		    	verbose_logging=old_verbose_logging;
+
+		    	if (verbose_logging) { 
+		    		consolePrint('AGAIN command executed, with changes detected - will execute another turn.');
+				}
+
+		    	againing=true;
+		    	timer=0;
+		    } else {		    	
+		    	verbose_logging=old_verbose_logging;
+				if (verbose_logging) { 
+					consolePrint('AGAIN command not executed, it wouldn\'t make any changes.');
+				}
+		    }
+		    verbose_logging=old_verbose_logging;
+
+		    messagetext = oldmessagetext;
+		    verbose_logging=old_verbose_logging;
+	    }   
+	}
+	    
+
+    level.commandQueue=[];
+
+    }
+
+	if (verbose_logging) {
+		consoleCacheDump();
+	}
+
+	if (winning) {
+		againing=false;
+	}
+
+	playSoundsFromQueue();
+
+	return modified;
+
+	return result;
+}
+
 //function processInput() {
 	//1  backup level
 	//2  process dir
@@ -2112,7 +2380,6 @@ function calculateRowColMasks() {
 
 */
 
-var soundsToPlay=[];
 
 function playSoundsFromQueue(){
 	for (var i=0;i<soundsToPlay.length;i++) {
@@ -2120,6 +2387,8 @@ function playSoundsFromQueue(){
 	}
 	soundsToPlay=[];
 }
+
+
 
 /* returns a bool indicating if anything changed */
 function processInput(dir,dontCheckWin,dontModify) {
@@ -2390,7 +2659,7 @@ function processInput(dir,dontCheckWin,dontModify) {
 	}
 
 	playSoundsFromQueue();
-	
+
 	return modified;
 }
 
