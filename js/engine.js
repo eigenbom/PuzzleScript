@@ -2274,18 +2274,14 @@ function NewProcessInput(dir,dontCheckWin,forecast) {
     }
 
     if (textMode===false && (dontCheckWin===undefined ||dontCheckWin===false)) {
-    	if (verbose_logging) { 
-    		consolePrint('Checking win condition.');
-		}
-    	checkWin();
+    	verbosePrint('Checking win condition.');
+		checkWin();
     }
 
     if (!winning) {
 
 		if (level.commandQueue.indexOf('checkpoint')>=0) {
-	    	if (verbose_logging) { 
-	    		consolePrint('CHECKPOINT command executed, saving current state to the restart state.');
-			}
+	    	verbosePrint('CHECKPOINT command executed, saving current state to the restart state.');			
 			restartTarget=backupLevel();
 		}	 
 
@@ -2299,17 +2295,13 @@ function NewProcessInput(dir,dontCheckWin,forecast) {
 	    	if (processInput(-1,true,true)) {
 		    	verbose_logging=old_verbose_logging;
 
-		    	if (verbose_logging) { 
-		    		consolePrint('AGAIN command executed, with changes detected - will execute another turn.');
-				}
+		    	verbosePrint('AGAIN command executed, with changes detected - will execute another turn.');				
 
 		    	againing=true;
 		    	timer=0;
 		    } else {		    	
 		    	verbose_logging=old_verbose_logging;
-				if (verbose_logging) { 
-					consolePrint('AGAIN command not executed, it wouldn\'t make any changes.');
-				}
+				verbosePrint('AGAIN command not executed, it wouldn\'t make any changes.');
 		    }
 		    verbose_logging=old_verbose_logging;
 
@@ -2321,21 +2313,17 @@ function NewProcessInput(dir,dontCheckWin,forecast) {
 
     level.commandQueue=[];
 
-    }
-
-	if (verbose_logging) {
-		consoleCacheDump();
-	}
-
+	consoleCacheDump();
+	
 	if (winning) {
 		againing=false;
 	}
 
-	playSoundsFromQueue();
-
-	return modified;
-
-	return result;
+	if (modified) {
+		return generateOutput();
+	} else {
+		return null;
+	}
 }
 
 //function processInput() {
